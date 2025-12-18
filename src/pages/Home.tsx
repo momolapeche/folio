@@ -22,6 +22,11 @@ export default function Home() {
       title: 'Terrain',
       description: 'Procedural terrain with lighting',
       path: '/terrain'
+    },
+    {
+      title: 'Game of Life',
+      description: 'Conway\'s Game of Life cellular automaton',
+      path: '/game-of-life'
     }
   ];
 

@@ -11,6 +11,7 @@ export default function Navigation() {
           <li><Link to="/particle-system">Particle System</Link></li>
           <li><Link to="/animated-sphere">Animated Sphere</Link></li>
           <li><Link to="/terrain">Terrain</Link></li>
+          <li><Link to="/game-of-life">Game of Life</Link></li>
         </ul>
       </div>
     </nav>

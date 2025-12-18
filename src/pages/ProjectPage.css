@@ -31,3 +31,24 @@
 .canvas-container canvas {
   display: block;
 }
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background: rgba(100, 108, 255, 0.1);
+  border: 2px dashed rgba(100, 108, 255, 0.3);
+}
+
+.placeholder h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.placeholder p {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 1.2rem;
+}
