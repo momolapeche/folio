@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import { WebGPURenderer } from "three/webgpu";
+import { createZAxisCubon } from "./zAxisModel";
 
 function setFaceColor(colors: Float32Array, offset: number, r: number, g: number, b: number) {
     for (let i = 0; i < 4; i++) {
@@ -17,23 +18,11 @@ interface Move {
 
 const moves: Record<string, Move> = {
     "R": { axis: 'x', layer: 1, angle: Math.PI / 2 },
-    "R2": { axis: 'x', layer: 1, angle: Math.PI },
-    "R'": { axis: 'x', layer: 1, angle: -Math.PI / 2 },
     "L": { axis: 'x', layer: -1, angle: Math.PI / 2 },
-    "L2": { axis: 'x', layer: -1, angle: Math.PI },
-    "L'": { axis: 'x', layer: -1, angle: -Math.PI / 2 },
     "U": { axis: 'y', layer: 1, angle: Math.PI / 2 },
-    "U2": { axis: 'y', layer: 1, angle: Math.PI },
-    "U'": { axis: 'y', layer: 1, angle: -Math.PI / 2 },
     "D": { axis: 'y', layer: -1, angle: Math.PI / 2 },
-    "D2": { axis: 'y', layer: -1, angle: Math.PI },
-    "D'": { axis: 'y', layer: -1, angle: -Math.PI / 2 },
     "F": { axis: 'z', layer: 1, angle: Math.PI / 2 },
-    "F2": { axis: 'z', layer: 1, angle: Math.PI },
-    "F'": { axis: 'z', layer: 1, angle: -Math.PI / 2 },
     "B": { axis: 'z', layer: -1, angle: Math.PI / 2 },
-    "B2": { axis: 'z', layer: -1, angle: Math.PI },
-    "B'": { axis: 'z', layer: -1, angle: -Math.PI / 2 },
 }
 
 class Cubon extends THREE.Mesh {
@@ -46,161 +35,15 @@ class Cubon extends THREE.Mesh {
     }
 }
 
-function createZAxisCubon(x: number, y: number, z: number) {
-    const geometry = new THREE.BufferGeometry()
+const qq = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-1, 1, 0).normalize(), Math.PI)
+const mm = new THREE.Matrix4().makeRotationFromQuaternion(qq)
+console.log(new THREE.Matrix3().setFromMatrix4(mm));
+/*
+0, -1, 0
+-1, 0, 0
+0, 0, -1
+ */
 
-    const d = new THREE.Vector2(2/3, 1/3)
-
-    if (x === 0 && y === 0 && z === 0) {
-        const positions = new Float32Array([
-            0, -1, -1, -1, 0, -1, -1, -1, 0,
-            -1, 0, -1, 0, -1, -1, -1, -1, -1,
-            -1, -1, 0, -1, 0, -1, -1, -1, -1,
-            0, -1, -1, -1, -1, 0, -1, -1, -1,
-        ])
-        const colors = new Float32Array([
-            0,0,0, 0,0,0, 0,0,0,
-            1,0.5,0, 1,0.5,0, 1,0.5,0,
-            0,0,1, 0,0,1, 0,0,1,
-            1,1,1, 1,1,1, 1,1,1,
-        ])
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    }
-    else if (x === 2 && y === 2 && z === 2) {
-        const positions = new Float32Array([
-            1, 0, 1, 0, 1, 1, 1, 1, 0,
-            0, 1, 1, 1, 0, 1, 1, 1, 1,
-            1, 0, 1, 1, 1, 0, 1, 1, 1,
-            1, 1, 0, 0, 1, 1, 1, 1, 1,
-        ])
-        const colors = new Float32Array([
-            0,0,0, 0,0,0, 0,0,0,
-            1,0,0, 1,0,0, 1,0,0,
-            0,1,0, 0,1,0, 0,1,0,
-            1,1,0, 1,1,0, 1,1,0,
-        ])
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    }
-    else if (
-        (x === 1 && y === 1 && z === 2) ||
-        (x === 1 && y === 2 && z === 1) ||
-        (x === 2 && y === 1 && z === 1)
-    ) {
-        const positions = new Float32Array([
-            1, 0, 1,
-            1/3, -1/3, 1,
-            1, -1, 1,
-
-            1, -1, 1,
-            1, -1/3, 1/3,
-            1, 0, 1,
-
-            1, -1/3, 1/3,
-            1/3, -1/3, 1,
-            1, 0, 1,
-
-            1/3, -1/3, 1,
-            1, -1/3, 1/3,
-            1, -1, 1,
-        ])
-        const colors = new Float32Array([
-            1,0,0, 1,0,0, 1,0,0,
-            0,1,0, 0,1,0, 0,1,0,
-            0,0,0, 0,0,0, 0,0,0,
-            0,0,0, 0,0,0, 0,0,0,
-        ])
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-        if (y === 2) {
-            geometry.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 1).normalize(), Math.PI * 4 / 3))
-        }
-        else if (x === 2) {
-            geometry.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 1).normalize(), Math.PI * 2 / 3))
-        }
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    }
-    else if (
-        (x === 1 && y === 2 && z === 2) ||
-        (x === 2 && y === 1 && z === 2) ||
-        (x === 2 && y === 2 && z === 1)
-    ) {
-        const positions = new Float32Array([
-            -1/3, 1/3, 1,
-            1/3, -1/3, 1,
-            1, 0, 1,
-
-            -1/3, 1/3, 1,
-            1, 0, 1,
-            0, 1, 1,
-        ])
-        const colors = new Float32Array([
-            1,1,0, 1,1,0, 1,1,0,
-            1,1,0, 1,1,0, 1,1,0,
-        ])
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-        if (y === 1) {
-            geometry.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 1).normalize(), Math.PI * 2 / 3))
-        }
-        else if (z === 1) {
-            geometry.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 1).normalize(), Math.PI * 4 / 3))
-        }
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    }
-    else if (
-        (x === 0 && y === 2 && z === 2) ||
-        (x === 2 && y === 0 && z === 2) ||
-        (x === 2 && y === 2 && z === 0)
-    ) {
-        const positions = new Float32Array([
-            1/3, -1/3, 1,
-            -1/3, 1/3, 1,
-            -1, -1, 1,
-        ])
-        const colors = new Float32Array([
-            1,0,0, 1,0,0, 1,0,0,
-            0,1,0, 0,1,0, 0,1,0,
-            0,0,0, 0,0,0, 0,0,0,
-            0,0,0, 0,0,0, 0,0,0,
-        ])
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-        if (y === 0) {
-            geometry.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 1).normalize(), Math.PI * 2 / 3))
-        }
-        else if (z === 0) {
-            geometry.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 1).normalize(), Math.PI * 4 / 3))
-        }
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    }
-    else {
-        geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(), 3))
-        geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(), 3))
-    }
-
-    const nx =
-        new THREE.Vector3(1, -1, -1).sub(new THREE.Vector3(0, 1, 1)).cross(
-        new THREE.Vector3(-1, 1, -1).sub(new THREE.Vector3(0, 1, 1))
-    ).normalize()
-    const ny =
-        new THREE.Vector3(-1, 1, -1).sub(new THREE.Vector3(1, 1, 0)).cross(
-        new THREE.Vector3(-1, -1, 1).sub(new THREE.Vector3(1, 1, 0))
-    ).normalize()
-    const nz = new THREE.Vector3().crossVectors(nx, ny).normalize()
-
-    const mat = new THREE.Matrix4()
-    mat.makeBasis(nx, ny, nz)
-    mat.invert()
-    geometry.applyMatrix4(mat)
-
-    geometry.computeVertexNormals()
-    const material = new THREE.MeshStandardMaterial({})
-    material.vertexColors = true
-    const cubon = new Cubon(new THREE.Vector3(x - 1, y - 1, z - 1), geometry, material)
-    cubon.castShadow = true
-    cubon.receiveShadow = true
-
-    return cubon
-}
 
 function createCube() {
     const cube = new THREE.Group()
@@ -249,7 +92,8 @@ function createCube() {
         // mesh.castShadow = true
         // mesh.receiveShadow = true
 
-        const mesh = createZAxisCubon(x, y, z)
+        const gm = createZAxisCubon(x, y, z)
+        const mesh = new Cubon(new THREE.Vector3(x - 1, y - 1, z - 1), gm.geometry, gm.material)
         cube.add(mesh)
     }
 
@@ -312,8 +156,8 @@ export function main(containerRef: React.RefObject<HTMLDivElement | null>) {
         then = now;
 
         // cube.rotation.x = now * 0.3;
-        // cube.rotation.y = -now * 0.8;
-        // cube.rotation.y = -0.7;
+        cube.rotation.y = -now * 0.8;
+        // cube.rotation.y = -3;
         // cube.rotation.x = 0.7;
         if (currentMove) {
             currentMove.progress += Math.abs(deltaTime * 3)
