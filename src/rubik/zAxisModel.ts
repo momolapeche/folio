@@ -1,9 +1,20 @@
 import * as THREE from 'three';
 
+function flipPositions(positions: Float32Array) {
+    for (let i = 0; i < positions.length; i += 3) {
+        const x0 = positions[i + 0]
+        const y0 = positions[i + 1]
+        const z0 = positions[i + 2]
+        positions[i + 0] = -y0
+        positions[i + 1] = -x0
+        positions[i + 2] = -z0
+    }
+}
+
 export function createZAxisCubon(x: number, y: number, z: number) {
     const geometry = new THREE.BufferGeometry()
 
-    if (x === 0 && y === 0 && z === 0) {
+    if ((x === 0 && y === 0 && z === 0) || (x === 2 && y === 2 && z === 2)) {
         const positions = new Float32Array([
             0, -1, -1, -1, 0, -1, -1, -1, 0,
             -1, 0, -1, 0, -1, -1, -1, -1, -1,
@@ -16,22 +27,10 @@ export function createZAxisCubon(x: number, y: number, z: number) {
             0,0,1, 0,0,1, 0,0,1,
             1,1,1, 1,1,1, 1,1,1,
         ])
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    }
-    else if (x === 2 && y === 2 && z === 2) {
-        const positions = new Float32Array([
-            1, 0, 1, 0, 1, 1, 1, 1, 0,
-            0, 1, 1, 1, 0, 1, 1, 1, 1,
-            1, 0, 1, 1, 1, 0, 1, 1, 1,
-            1, 1, 0, 0, 1, 1, 1, 1, 1,
-        ])
-        const colors = new Float32Array([
-            0,0,0, 0,0,0, 0,0,0,
-            1,0,0, 1,0,0, 1,0,0,
-            0,1,0, 0,1,0, 0,1,0,
-            1,1,0, 1,1,0, 1,1,0,
-        ])
+
+        if (x === 2 && y === 2 && z === 2) {
+            flipPositions(positions)
+        }
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     }
@@ -69,14 +68,7 @@ export function createZAxisCubon(x: number, y: number, z: number) {
         ])
 
         if (x + y + z === 2) {
-            for (let i = 0; i < positions.length; i += 3) {
-                const x0 = positions[i + 0]
-                const y0 = positions[i + 1]
-                const z0 = positions[i + 2]
-                positions[i + 0] = -y0
-                positions[i + 1] = -x0
-                positions[i + 2] = -z0
-            }
+            flipPositions(positions)
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
@@ -112,14 +104,7 @@ export function createZAxisCubon(x: number, y: number, z: number) {
         ])
 
         if (x + y + z === 1) {
-            for (let i = 0; i < positions.length; i += 3) {
-                const x0 = positions[i + 0]
-                const y0 = positions[i + 1]
-                const z0 = positions[i + 2]
-                positions[i + 0] = -y0
-                positions[i + 1] = -x0
-                positions[i + 2] = -z0
-            }
+            flipPositions(positions)
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
@@ -162,14 +147,7 @@ export function createZAxisCubon(x: number, y: number, z: number) {
             0,0,0, 0,0,0, 0,0,0,
         ])
         if (x + y + z === 2) {
-            for (let i = 0; i < positions.length; i += 3) {
-                const x0 = positions[i + 0]
-                const y0 = positions[i + 1]
-                const z0 = positions[i + 2]
-                positions[i + 0] = -y0
-                positions[i + 1] = -x0
-                positions[i + 2] = -z0
-            }
+            flipPositions(positions)
         }
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
         if (x + y + z === 4) {
