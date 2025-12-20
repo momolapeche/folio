@@ -1,201 +1,289 @@
+import * as THREE from 'three';
+import { ComputeNode, StorageBufferAttribute, StorageTexture, TSL, WebGPURenderer } from 'three/webgpu';
+import { wgslFn, storage, uint, instanceIndex, If, textureStore, ivec2, storageTexture, uvec2, float, vec4, Fn, select, vec3 } from 'three/tsl';
+import type { GameOfLifePattern, GameOfLifePatternTransform } from './patterns';
+
+// interface GameOfLifePattern {
+//     name: string;
+//     width: number;
+//     height: number;
+//     data: Uint32Array;
+// }
+
+// export const patterns: GameOfLifePattern[] = [
+//     {
+//         name: "Glider",
+//         width: 3,
+//         height: 3,
+//         data: new Uint32Array([
+//             0, 1, 0,
+//             0, 0, 1,
+//             1, 1, 1
+//         ])
+//     },
+//     {
+//         name: "Lightweight Spaceship",
+//         width: 5,
+//         height: 4,
+//         data: new Uint32Array([
+//             0, 1, 1, 1, 1,
+//             1, 0, 0, 0, 1,
+//             0, 0, 0, 0, 1,
+//             1, 0, 0, 1, 0
+//         ])
+//     },
+//     {
+//         name: "Middleweight Spaceship",
+//         width: 6,
+//         height: 5,
+//         data: new Uint32Array([
+//             0, 1, 1, 1, 1, 1,
+//             1, 0, 0, 0, 0, 1,
+//             0, 0, 0, 0, 0, 1,
+//             1, 0, 0, 0, 1, 0,
+//             0, 0, 1, 0, 0, 0,
+//         ])
+//     },
+// ]
+
 export class GameOfLife {
-    private device: GPUDevice;
-    private pipeline!: GPUComputePipeline;
-    private bindGroups: GPUBindGroup[] = [];
-    private buffers: GPUBuffer[] = [];
     private width: number;
     private height: number;
-    private workgroupSize = 8;
+    private storageBuffers: StorageBufferAttribute[] = [];
+    private currentBuffer = 0;
+    private updateNodes!: [ComputeNode, ComputeNode];
+    private clearNodes!: [ComputeNode, ComputeNode];
+    private setCellNode: any;
+    private applyPatternNode: any;
 
-    constructor(device: GPUDevice, width: number, height: number) {
-        this.device = device;
+    constructor(width: number, height: number) {
         this.width = width;
         this.height = height;
+        this.init();
     }
 
-    async init(): Promise<void> {
-        // Create shader module
-        const shaderModule = this.device.createShaderModule({
-            code: this.getComputeShader(),
-        });
+    private init(): void {
+        // Create storage buffers for double buffering
+        const size = this.width * this.height;
+        
+        // const bufferAttribute0 = new StorageBufferAttribute(new Uint32Array(size).map(() => Math.random() < 0.3 ? 1 : 0), 1);
+        const bufferAttribute0 = new StorageBufferAttribute(new Uint32Array(size), 1);
+        this.storageBuffers[0] = bufferAttribute0;
+        const bufferAttribute1 = new StorageBufferAttribute(size, 1);
+        this.storageBuffers[1] = bufferAttribute1;
 
-        // Create compute pipeline
-        this.pipeline = this.device.createComputePipeline({
-            layout: 'auto',
-            compute: {
-                module: shaderModule,
-                entryPoint: 'main',
-            },
-        });
-
-        // Create buffers for double buffering
-        const bufferSize = this.width * this.height * Uint32Array.BYTES_PER_ELEMENT;
-
-        for (let i = 0; i < 2; i++) {
-            this.buffers[i] = this.device.createBuffer({
-                size: bufferSize,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-            });
-        }
-
-        // Create bind groups for double buffering
-        for (let i = 0; i < 2; i++) {
-            this.bindGroups[i] = this.device.createBindGroup({
-                layout: this.pipeline.getBindGroupLayout(0),
-                entries: [
-                    {
-                        binding: 0,
-                        resource: { buffer: this.buffers[i] },
-                    },
-                    {
-                        binding: 1,
-                        resource: { buffer: this.buffers[(i + 1) % 2] },
-                    },
-                ],
-            });
-        }
+        // Create compute node using TSL
+        this.createComputeNode();
     }
 
-    private getComputeShader(): string {
-        return `
-struct Params {
-    width: u32,
-    height: u32,
-}
+    private createComputeNode(): void {
+        const width = this.width;
+        const height = this.height;
 
-@group(0) @binding(0) var<storage, read> input: array<u32>;
-@group(0) @binding(1) var<storage, read_write> output: array<u32>;
+        const bufferStorage0 = storage(this.storageBuffers[0], 'uint', this.width * this.height);
+        const bufferStorage1 = storage(this.storageBuffers[1], 'uint', this.width * this.height);
 
-const WIDTH: u32 = ${this.width}u;
-const HEIGHT: u32 = ${this.height}u;
+        const updateNode = wgslFn(`
+            fn computeGameOfLife(
+                inputBuffer: ptr<storage, array<u32>, read_write>,
+                outputBuffer: ptr<storage, array<u32>, read_write>,
+                globalId: vec3<u32>
+            ) -> void {
+                let x = u32(globalId.x);
+                let n = countNeighbors(i32(x % ${width}u), i32(x / ${width}u), inputBuffer);
 
-fn getCell(x: i32, y: i32) -> u32 {
-    let wx = (x + i32(WIDTH)) % i32(WIDTH);
-    let wy = (y + i32(HEIGHT)) % i32(HEIGHT);
-    let index = u32(wy) * WIDTH + u32(wx);
-    return input[index];
-}
-
-fn countNeighbors(x: i32, y: i32) -> u32 {
-    var count: u32 = 0u;
-
-    for (var dy: i32 = -1; dy <= 1; dy++) {
-        for (var dx: i32 = -1; dx <= 1; dx++) {
-            if (dx == 0 && dy == 0) {
-                continue;
+                let currentState = (*inputBuffer)[x];
+                if (currentState == 1u) {
+                    if (n == 2u || n == 3u) {
+                        (*outputBuffer)[x] = 1u; // Cell survives
+                    } else {
+                        (*outputBuffer)[x] = 0u; // Cell dies
+                    }
+                } else {
+                    if (n == 3u) {
+                        (*outputBuffer)[x] = 1u; // Cell becomes alive
+                    } else {
+                        (*outputBuffer)[x] = 0u; // Cell remains dead
+                    }
+                }
             }
-            count += getCell(x + dx, y + dy);
-        }
+            
+            fn countNeighbors(x: i32, y: i32, input: ptr<storage, array<u32>, read_write>) -> u32 {
+                var count: u32 = 0u;
+                
+                for (var dy: i32 = -1; dy <= 1; dy++) {
+                    for (var dx: i32 = -1; dx <= 1; dx++) {
+                        if (dx == 0 && dy == 0) {
+                            continue;
+                        }
+                        let wx = (x + dx + i32(${width})) % i32(${width});
+                        let wy = (y + dy + i32(${height})) % i32(${height});
+                        let index = u32(wy) * ${width}u + u32(wx);
+                        count += (*input)[index];
+                    }
+                }
+                
+                return count;
+            }
+        `)
+
+        this.updateNodes = [
+            updateNode(
+                bufferStorage0,
+                bufferStorage1,
+                instanceIndex
+            ).compute(this.width * this.height),
+            updateNode(
+                bufferStorage1,
+                bufferStorage0,
+                instanceIndex
+            ).compute(this.width * this.height),
+        ]
+
+        const clearNode = wgslFn(`
+            fn computeGameOfLife(
+                buffer: ptr<storage, array<u32>, read_write>,
+                globalId: vec3<u32>
+            ) -> void {
+                let x = u32(globalId.x);
+                (*buffer)[x] = 0u;
+            }
+        `)
+
+        this.clearNodes = [
+            clearNode(
+                bufferStorage0,
+                instanceIndex
+            ).compute(this.width * this.height),
+            clearNode(
+                bufferStorage1,
+                instanceIndex
+            ).compute(this.width * this.height),
+        ]
+
+        this.setCellNode = wgslFn(`
+            fn setCell(
+                buffer: ptr<storage, array<u32>, read_write>,
+                x: u32,
+                y: u32,
+                state: u32
+            ) -> void {
+                let index = y * ${width}u + x;
+                (*buffer)[index] = state;
+            }
+        `)
+
+        this.applyPatternNode = wgslFn(`
+            fn applyPattern(
+                buffer: ptr<storage, array<u32>, read_write>,
+                patternData: ptr<storage, array<u32>, read_write>,
+                patternWidth: u32,
+                patternHeight: u32,
+                offsetX: u32,
+                offsetY: u32,
+                xDirection: i32,
+                yDirection: i32,
+                flip: u32
+            ) -> void {
+                for (var py: u32 = 0u; py < patternHeight; py++) {
+                    for (var px: u32 = 0u; px < patternWidth; px++) {
+                        var tx: u32;
+                        var ty: u32;
+                        if (flip == 0u) {
+                            if (xDirection > 0) {
+                                tx = px;
+                            } else {
+                                tx = patternWidth - 1u - px;
+                            }
+                            if (yDirection > 0) {
+                                ty = py;
+                            } else {
+                                ty = patternHeight - 1u - py;
+                            }
+                        } else {
+                            if (xDirection > 0) {
+                                ty = px;
+                            } else {
+                                ty = patternWidth - 1u - px;
+                            }
+                            if (yDirection > 0) {
+                                tx = py;
+                            } else {
+                                tx = patternHeight - 1u - py;
+                            }
+                        }
+                        let state = (*patternData)[py * patternWidth + px];
+                        if (state != 0u) {
+                            let index = ((offsetY + ty) % ${height}u) * ${width}u + ((offsetX + tx) % ${width}u);
+                            (*buffer)[index] = state;
+                        }
+                    }
+                }
+            }
+        `)
     }
 
-    return count;
-}
-
-@compute @workgroup_size(${this.workgroupSize}, ${this.workgroupSize})
-fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let x = i32(global_id.x);
-    let y = i32(global_id.y);
-
-    if (global_id.x >= WIDTH || global_id.y >= HEIGHT) {
-        return;
+    async setCell(renderer: WebGPURenderer, x: number, y: number, state: number): Promise<void> {
+        const setCell = this.setCellNode;
+        await renderer.computeAsync(setCell(
+            storage(this.storageBuffers[this.currentBuffer], 'uint', this.width * this.height),
+            x,
+            y,
+            state
+        ).compute(1));
     }
 
-    let index = global_id.y * WIDTH + global_id.x;
-    let cell = input[index];
-    let neighbors = countNeighbors(x, y);
+    async setPattern(renderer: WebGPURenderer, pattern: GameOfLifePattern, offsetX: number, offsetY: number, transform: GameOfLifePatternTransform): Promise<void> {
+        const applyPattern = this.applyPatternNode;
+        const patternBuffer = new StorageBufferAttribute(pattern.data, 1);
 
-    // Conway's Game of Life rules:
-    // 1. Any live cell with 2 or 3 neighbors survives
-    // 2. Any dead cell with exactly 3 neighbors becomes alive
-    // 3. All other cells die or stay dead
-
-    var newCell: u32 = 0u;
-
-    if (cell == 1u) {
-        // Cell is alive
-        if (neighbors == 2u || neighbors == 3u) {
-            newCell = 1u;
-        }
-    } else {
-        // Cell is dead
-        if (neighbors == 3u) {
-            newCell = 1u;
-        }
+        await renderer.computeAsync(applyPattern(
+            storage(this.storageBuffers[this.currentBuffer], 'uint', this.width * this.height),
+            storage(patternBuffer, 'uint', pattern.width * pattern.height),
+            pattern.width,
+            pattern.height,
+            offsetX,
+            offsetY,
+            transform.xDirection,
+            transform.yDirection,
+            transform.flip ? 1 : 0
+        ).compute(1));
     }
 
-    output[index] = newCell;
-}
-`;
+    async clear(renderer: WebGPURenderer): Promise<void> {
+        return await renderer.computeAsync(this.clearNodes[this.currentBuffer]);
     }
 
-    async update(currentBuffer: number = 0): Promise<void> {
-        const commandEncoder = this.device.createCommandEncoder();
-        const passEncoder = commandEncoder.beginComputePass();
+    async update(renderer: WebGPURenderer): Promise<void> {
+        const nextBuffer = (this.currentBuffer + 1) % 2;
 
-        passEncoder.setPipeline(this.pipeline);
-        passEncoder.setBindGroup(0, this.bindGroups[currentBuffer]);
+        // Update compute node with current buffers
+        await renderer.computeAsync(this.updateNodes[this.currentBuffer]);
 
-        const workgroupsX = Math.ceil(this.width / this.workgroupSize);
-        const workgroupsY = Math.ceil(this.height / this.workgroupSize);
-
-        passEncoder.dispatchWorkgroups(workgroupsX, workgroupsY);
-        passEncoder.end();
-
-        this.device.queue.submit([commandEncoder.finish()]);
-        await this.device.queue.onSubmittedWorkDone();
+        this.currentBuffer = nextBuffer;
     }
 
-    async setData(data: Uint32Array, bufferIndex: number = 0): Promise<void> {
-        this.device.queue.writeBuffer(this.buffers[bufferIndex], 0, data);
-    }
+    async getData(renderer: WebGPURenderer, texture: StorageTexture) {
+        const input = this.storageBuffers[this.currentBuffer];
 
-    async getData(bufferIndex: number = 0): Promise<Uint32Array> {
-        const bufferSize = this.width * this.height * Uint32Array.BYTES_PER_ELEMENT;
-        const stagingBuffer = this.device.createBuffer({
-            size: bufferSize,
-            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-        });
+        const count = this.width * this.height
 
-        const commandEncoder = this.device.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(
-            this.buffers[bufferIndex],
-            0,
-            stagingBuffer,
-            0,
-            bufferSize
-        );
-        this.device.queue.submit([commandEncoder.finish()]);
+        const writeTex = Fn(({storageTexture}: {storageTexture: StorageTexture}) => {
 
-        await stagingBuffer.mapAsync(GPUMapMode.READ);
-        const data = new Uint32Array(stagingBuffer.getMappedRange().slice(0));
-        stagingBuffer.unmap();
-        stagingBuffer.destroy();
+            const data = storage(input, 'uint', count)
 
-        return data;
-    }
+            const x = instanceIndex.mod(this.width)
+            const y = instanceIndex.div(this.width)
+            const uv = uvec2(x, y)
+            const cell = select(data.element(instanceIndex.x).equal(0), vec3(0,0,0), vec3(1,1,1))
+            textureStore(storageTexture, uv, vec4(cell, 1.0)).toWriteOnly()
+        })
 
-    randomize(bufferIndex: number = 0, probability: number = 0.3): void {
-        const data = new Uint32Array(this.width * this.height);
-        for (let i = 0; i < data.length; i++) {
-            data[i] = Math.random() < probability ? 1 : 0;
-        }
-        this.setData(data, bufferIndex);
-    }
+        const computeNode = writeTex({storageTexture: texture}).compute(count)
 
-    clear(bufferIndex: number = 0): void {
-        const data = new Uint32Array(this.width * this.height);
-        this.setData(data, bufferIndex);
-    }
+        // console.log(texture)
+        await renderer.computeAsync(computeNode)
 
-    destroy(): void {
-        this.buffers.forEach(buffer => buffer.destroy());
-    }
-
-    getWidth(): number {
-        return this.width;
-    }
-
-    getHeight(): number {
-        return this.height;
+        return new Uint32Array(this.storageBuffers[0].array);
     }
 }

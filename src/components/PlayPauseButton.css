@@ -1,0 +1,33 @@
+.play-pause-button {
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+  width: 64px;
+  height: 64px;
+  background: rgba(100, 108, 255, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(100, 108, 255, 0.3);
+}
+
+.play-pause-button:hover {
+  background: rgba(100, 108, 255, 1);
+  transform: scale(1.1);
+  box-shadow: 0 6px 30px rgba(100, 108, 255, 0.5);
+}
+
+.play-pause-button:active {
+  transform: scale(1.05);
+}
+
+.play-pause-button svg {
+  width: 32px;
+  height: 32px;
+  color: white;
+}
