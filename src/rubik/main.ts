@@ -93,7 +93,12 @@ function createCube() {
         // mesh.receiveShadow = true
 
         const gm = createZAxisCubon(x, y, z)
+        if (gm === undefined) {
+            continue
+        }
         const mesh = new Cubon(new THREE.Vector3(x - 1, y - 1, z - 1), gm.geometry, gm.material)
+        mesh.castShadow = true
+        mesh.receiveShadow = true
         cube.add(mesh)
     }
 
@@ -139,8 +144,16 @@ export function main(containerRef: React.RefObject<HTMLDivElement | null>) {
     const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
 
-    const cube = createCube();
-    scene.add(cube);
+    const groundGeometry = new THREE.PlaneGeometry(100, 100);
+    const groundMaterial = new THREE.MeshStandardMaterial({color: 0xffffff});
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const cube = createCube()
+    scene.add(cube)
 
     let currentMove: {
         cubons: Cubon[]
@@ -156,7 +169,7 @@ export function main(containerRef: React.RefObject<HTMLDivElement | null>) {
         then = now;
 
         // cube.rotation.x = now * 0.3;
-        cube.rotation.y = -now * 0.8;
+        // cube.rotation.y = -now * 0.8;
         // cube.rotation.y = -3;
         // cube.rotation.x = 0.7;
         if (currentMove) {

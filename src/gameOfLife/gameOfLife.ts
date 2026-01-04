@@ -201,12 +201,12 @@ export class GameOfLife {
                                 ty = patternHeight - 1u - py;
                             }
                         } else {
-                            if (xDirection > 0) {
+                            if (yDirection > 0) {
                                 ty = px;
                             } else {
                                 ty = patternWidth - 1u - px;
                             }
-                            if (yDirection > 0) {
+                            if (xDirection > 0) {
                                 tx = py;
                             } else {
                                 tx = patternHeight - 1u - py;
@@ -234,6 +234,8 @@ export class GameOfLife {
     }
 
     async setPattern(renderer: WebGPURenderer, pattern: GameOfLifePattern, offsetX: number, offsetY: number, transform: GameOfLifePatternTransform): Promise<void> {
+        console.error('Applying pattern:', pattern.name, 'at', offsetX, offsetY, 'with transform', transform);
+        console.log('Applying pattern:', pattern.name, 'at', offsetX, offsetY, 'with transform', transform);
         const applyPattern = this.applyPatternNode;
         const patternBuffer = new StorageBufferAttribute(pattern.data, 1);
 

@@ -4,51 +4,66 @@ import PatternSelector from '../components/PatternSelector';
 import PlayPauseButton from '../components/PlayPauseButton';
 import TransformButton from '../components/TransformButton';
 import ClearButton from '../components/ClearButton';
+import PatternPreview from '../components/PatternPreview';
 import './ProjectPage.css';
-import type { GameOfLifePattern } from '../gameOfLife/patterns';
+import { patterns, type GameOfLifePattern, type GameOfLifePatternTransform } from '../gameOfLife/patterns';
 
 export default function GameOfLife() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const eventTargetRef = useRef<EventTarget>(new EventTarget());
+	const containerRef = useRef<HTMLDivElement>(null);
+	const eventTargetRef = useRef<EventTarget>(new EventTarget());
+	const [currentPattern, setCurrentPattern] = useState<GameOfLifePattern>(patterns[0]);
+	const [currentTransform, setCurrentTransform] = useState<GameOfLifePatternTransform>({
+		xDirection: 1,
+		yDirection: 1,
+		flip: false,
+	});
 
-  useEffect(() => {
-    if (!containerRef.current) return;
+	useEffect(() => {
+		if (!containerRef.current) return;
 
-    const { cleanup } = initGameOfLife(containerRef.current, eventTargetRef.current);
+		const { cleanup, getInitialPattern } = initGameOfLife(containerRef.current, eventTargetRef.current);
+		setCurrentPattern(getInitialPattern());
 
-    return () => {
-      cleanup();
-    };
-  }, []);
+		return () => {
+			cleanup();
+		};
+	}, []);
 
-  const handleSelectPattern = (pattern: GameOfLifePattern) => {
-    eventTargetRef.current.dispatchEvent(new CustomEvent('selectPattern', { detail: {pattern} }));
-  };
+	const handleSelectPattern = (pattern: GameOfLifePattern) => {
+		setCurrentPattern(pattern);
+		eventTargetRef.current.dispatchEvent(new CustomEvent('selectPattern', { detail: { pattern } }));
+	};
 
-  const handleTogglePause = (isPaused: boolean) => {
-    eventTargetRef.current.dispatchEvent(new CustomEvent('togglePause', { detail: { isPaused } }));
-  };
+	const handleTogglePause = (isPaused: boolean) => {
+		eventTargetRef.current.dispatchEvent(new CustomEvent('togglePause', { detail: { isPaused } }));
+	};
 
-  const handleTransform = (action: 'rotateLeft' | 'rotateRight' | 'flipH' | 'flipV') => {
-    eventTargetRef.current.dispatchEvent(new CustomEvent('transform', { detail: { action } }));
-  };
+	const handleTransfromUpdate = (event: any) => {
+		setCurrentTransform(event.detail.transform);
+	}
+	eventTargetRef.current.addEventListener('transformUpdate', handleTransfromUpdate);
 
-  const handleClear = () => {
-    eventTargetRef.current.dispatchEvent(new CustomEvent('clear'));
-  };
+	const handleTransform = (action: 'rotateLeft' | 'rotateRight' | 'flipH' | 'flipV') => {
+		eventTargetRef.current.dispatchEvent(new CustomEvent('transform', { detail: { action } }));
+	};
 
-  return (
-    <div className="project-page">
-      <div className="project-header">
-        <h1>Game of Life</h1>
-        <p>Conway's Game of Life - A cellular automaton simulation</p>
-      </div>
-      <div ref={containerRef} className="canvas-container">
-        <PatternSelector onSelectPattern={handleSelectPattern} />
-        <PlayPauseButton onToggle={handleTogglePause} />
-        <TransformButton onTransform={handleTransform} />
-        <ClearButton onClear={handleClear} />
-      </div>
-    </div>
-  );
+	const handleClear = () => {
+		eventTargetRef.current.dispatchEvent(new CustomEvent('clear'));
+	};
+
+	return (
+		<div className="project-page">
+			<div className="project-header">
+				<h1>Game of Life</h1>
+				<p>Conway's Game of Life - A cellular automaton simulation</p>
+			</div>
+			<div ref={containerRef} className="canvas-container">
+				<PatternSelector onSelectPattern={handleSelectPattern} />
+				<PlayPauseButton onToggle={handleTogglePause} />
+				<TransformButton onTransform={handleTransform} />
+				<ClearButton onClear={handleClear} />
+				<PatternPreview pattern={currentPattern} transform={currentTransform} />
+			</div>
+		</div>
+	);
 }

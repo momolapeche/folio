@@ -1,0 +1,29 @@
+.pattern-preview {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(20, 20, 20, 0.95);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+}
+
+.pattern-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.pattern-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #00ff88;
+}
+
+.pattern-preview-svg {
+    display: block;
+}

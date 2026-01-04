@@ -83,7 +83,9 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
     })
 
     let currentPattern = patterns[0];
-    let currentPatternTransform: GameOfLifePatternTransform = { xDirection: 1, yDirection: 1, flip: false };
+    let currentPatternTransform: GameOfLifePatternTransform = {
+        xDirection: 1, yDirection: 1, flip: false
+    };
 
     const handleSelectPattern = (event: any) => {
         console.log("Selected pattern:", event.detail.pattern);
@@ -114,13 +116,16 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
                 currentPatternTransform.flip = !currentPatternTransform.flip;
                 break;
             case 'flipH':
+                console.log("Flipping horizontally");
                 currentPatternTransform.xDirection *= -1;
                 break;
             case 'flipV':
+                console.log("Flipping vertically");
                 currentPatternTransform.yDirection *= -1;
                 break;
         }
-        console.log('Transform:', currentPatternTransform);
+
+        eventTarget.dispatchEvent(new CustomEvent('transformUpdate', { detail: { transform: {...currentPatternTransform} } }));
     }
     eventTarget.addEventListener("transform", handleTransform)
 
@@ -207,5 +212,6 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
             renderer.dispose();
         },
         gameOfLife: gameOfLife,
+        getInitialPattern: () => currentPattern,
     }
 }
