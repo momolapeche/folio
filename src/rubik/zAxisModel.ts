@@ -1,15 +1,5 @@
 import * as THREE from 'three';
 
-function flipPositions(positions: Float32Array | number[]) {
-    for (let i = 0; i < positions.length; i += 3) {
-        const x0 = positions[i + 0]
-        const y0 = positions[i + 1]
-        const z0 = positions[i + 2]
-        positions[i + 0] = -y0
-        positions[i + 1] = -x0
-        positions[i + 2] = -z0
-    }
-}
 function flipVertices(vertices: Vertex[]) {
     vertices.forEach(vertex => {
         const x0 = vertex.position.x
@@ -46,6 +36,40 @@ function getFaceNormal(face: Face): THREE.Vector3 {
         .normalize()
 }
 
+function getVertexAngle(face: Face, vertexIndex: number): number {
+    const points = face.points
+    const prevIndex = (vertexIndex - 1 + points.length) % points.length
+    const nextIndex = (vertexIndex + 1) % points.length
+    const vPrev = new THREE.Vector3().subVectors(points[prevIndex].position, points[vertexIndex].position).normalize()
+    const vNext = new THREE.Vector3().subVectors(points[nextIndex].position, points[vertexIndex].position).normalize()
+    return vPrev.angleTo(vNext)
+}
+
+interface RoundingEdge {
+    f0: Face
+    f1: Face
+    f0i: number
+    f1i: number
+    v0: Vertex
+    v1: Vertex
+    delta: number
+}
+
+function createLine(center: THREE.Vector3, start: Vertex, end: Vertex, segments: number, radius: number) {
+    const line: Vertex[] = [start]
+    const p0 = start.position.clone().sub(center)
+    const p1 = end.position.clone().sub(center)
+    for (let i = 1; i < segments; i++) {
+        const t = i / segments
+        const n: Vertex = {
+            position: p0.clone().lerp(p1, t).setLength(radius).add(center),
+        }
+        line.push(n)
+    }
+    line.push(end)
+    return line;
+}
+
 class Model {
     points: Set<Vertex>
     faces: Set<Face>
@@ -60,8 +84,7 @@ class Model {
         this.faces.add({ points })
     }
 
-    toGeometry(): THREE.BufferGeometry {
-        const geometry = new THREE.BufferGeometry()
+    toGeometry(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
         const positions: number[] = []
         const colors: number[] = []
         this.faces.forEach(face => {
@@ -88,19 +111,34 @@ class Model {
         const newPoints: Set<Vertex> = new Set<Vertex>()
 
         const faces = Array.from(this.faces)
-        const edges: {f0: Face, f1: Face, f0i: number, f1i: number, delta: number}[] = []
-        const corners: Map<Vertex, {face: Face, index: number}[]> = new Map()
+        const faceNormals = new Map<Face, THREE.Vector3>()
+        const edges: RoundingEdge[] = []
+        const corners: Map<Vertex, {normal: THREE.Vector3, faces: {face: Face, index: number}[]}> = new Map()
+        const cornerCenters: Map<Vertex, THREE.Vector3> = new Map()
+        const cornerLines: Map<Vertex, Vertex[][]> = new Map()
 
-        for (let i = 0; i < faces.length; i++) {
-            const face = faces[i]
+        for (const face of faces) {
+            faceNormals.set(face, getFaceNormal(face))
+
             face.points.forEach((v, index) => {
-                let arr = corners.get(v)
-                if (!arr) {
-                    arr = []
-                    corners.set(v, arr)
+                let corner = corners.get(v)
+                if (!corner) {
+                    corner = { normal: new THREE.Vector3(), faces: [] }
+                    corners.set(v, corner)
                 }
-                arr.push({ face, index })
+                corner.faces.push({ face, index })
             })
+        }
+
+        for (const corner of corners.values()) {
+            let normal = corner.normal
+            normal.set(0, 0, 0)
+            for (const cornerFace of corner.faces) {
+                const angle = getVertexAngle(cornerFace.face, cornerFace.index)
+                const faceNormal = faceNormals.get(cornerFace.face)!
+                normal.addScaledVector(faceNormal, angle)
+            }
+            normal.normalize()
         }
 
         for (let i = 0; i < faces.length; i++) {
@@ -127,7 +165,17 @@ class Model {
                         const f1Normal = getFaceNormal(faceB)
                         const angle = f0Normal.angleTo(f1Normal)
                         const delta = Math.tan(angle / 2) * radius
-                        edges.push({ f0: faceA, f1: faceB, f0i: f0i, f1i: f1i, delta: delta});
+                        console.log('edge', faceA.points[f0i] === faceB.points[f1i])
+                        const edge: RoundingEdge = {
+                            f0: faceA,
+                            f1: faceB,
+                            f0i: f0i,
+                            f1i: f1i,
+                            v0: faceA.points[f0i],
+                            v1: faceB.points[f1i],
+                            delta: delta,
+                        }
+                        edges.push(edge);
                     }
                 }
             }
@@ -211,27 +259,135 @@ class Model {
             const p3 = edge.f1.points[(edge.f1i + 1) % edge.f1.points.length]
 
             const points: Vertex[] = []
-            const segments = 6
-            for (let i = 0; i <= segments; i++) {
+            const line0: Vertex[] = [p0]
+            const line1: Vertex[] = [p1]
+
+            const segments = 3
+            for (let i = 1; i < segments; i++) {
                 const theta0 = (i / segments) * angle
-                points.push({
+                const n0: Vertex = {
                     position: p0.position.clone().sub(c0.position).applyAxisAngle(axis, theta0).add(c0.position),
-                })
-                points.push({
+                }
+                const n1: Vertex = {
                     position: p1.position.clone().sub(c0.position).applyAxisAngle(axis, theta0).add(c0.position),
-                })
+                }
+                line0.push(n0)
+                line1.push(n1)
+                points.push(n0)
+                points.push(n1)
             }
+            line0.push(p3)
+            line1.push(p2)
 
             for (let i = 0; i < segments; i++) {
                 this.addFace([
-                    points[i*2 + 2],
-                    points[i*2 + 3],
-                    points[i*2 + 1],
-                    points[i*2],
+                    line0[i + 1],
+                    line1[i + 1],
+                    line1[i],
+                    line0[i],
                 ])
             }
 
+            line1.reverse()
+
+            if (cornerCenters.has(edge.v0) === false) {
+                cornerCenters.set(edge.v0, c0.position)
+            }
+
+            if (cornerCenters.has(edge.v1) === false) {
+                cornerCenters.set(edge.v1, c1.position)
+            }
+
+            if (cornerLines.has(edge.v0) === false) {
+                cornerLines.set(edge.v0, [line0])
+            }
+            else {
+                cornerLines.get(edge.v0)!.push(line0)
+            }
+
+            if (cornerLines.has(edge.v1) === false) {
+                cornerLines.set(edge.v1, [line1])
+            }
+            else {
+                cornerLines.get(edge.v1)!.push(line1)
+            }
+
             points.forEach(p => newPoints.add(p))
+        }
+
+        const cornerSegments = 3
+        const normalLines = new Map<Vertex, Vertex[]>()
+        for (const corner of corners.entries()) {
+            const v = corner[0]
+            const info = corner[1]
+
+            const center = cornerCenters.get(v)!
+            const lines = cornerLines.get(v)!
+
+            const pCorner: Vertex = {
+                position: center.clone().addScaledVector(info.normal, radius),
+                color: new THREE.Color(1, 1, 0),
+            }
+            newPoints.add(pCorner)
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i]
+
+                let normalLine0 = normalLines.get(line[0])
+                if (!normalLine0) {
+                    normalLine0 = createLine(center, line[0], pCorner, cornerSegments, radius)
+                    normalLines.set(line[0], normalLine0)
+                    normalLine0.forEach(n => newPoints.add(n))
+                }
+
+                let normalLine1 = normalLines.get(line[line.length - 1])
+                if (!normalLine1) {
+                    normalLine1 = createLine(center, line[line.length - 1], pCorner, cornerSegments, radius)
+                    normalLines.set(line[line.length - 1], normalLine1)
+                    normalLine1.forEach(n => newPoints.add(n))
+                }
+
+                let lastLine = line
+                for (let i = 1; i < cornerSegments; i++) {
+                    const newLine: Vertex[] = [
+                        normalLine0[i],
+                    ]
+                    const p0 = normalLine0[i].position.clone().sub(center);
+                    const p1 = normalLine1[i].position.clone().sub(center);
+                    for (let j = 1; j < lastLine.length - 2; j++) {
+                        const t = i / (lastLine.length - 2)
+                        const n: Vertex = {
+                            position: p0.lerp(p1, t).setLength(radius).add(center),
+                        }
+                        newLine.push(n)
+                        newPoints.add(n)
+                    }
+                    newLine.push(normalLine1[i])
+
+                    for (let j = 0; j < newLine.length - 1; j++) {
+                        this.addFace([
+                            newLine[j],
+                            newLine[j + 1],
+                            lastLine[j + 1],
+                            lastLine[j],
+                        ])
+                    }
+                    this.addFace([
+                        newLine[newLine.length - 1],
+                        lastLine[lastLine.length - 1],
+                        lastLine[lastLine.length - 2],
+                    ])
+
+                    lastLine = newLine
+                }
+                for (let j = 1; j < lastLine.length; j++) {
+                    this.addFace([
+                        lastLine[j],
+                        lastLine[j - 1],
+                        pCorner,
+                    ])
+                }
+            }
         }
 
         this.points = newPoints
@@ -254,19 +410,18 @@ const forwardMat = mat.clone()
 mat.invert()
 
 const inters = [
-    new THREE.Vector3(-1/3, -1/3, -1/3),    // 000
-    new THREE.Vector3(-1/3, -1/3, 1/3),     // 001
-    new THREE.Vector3(-1/3, 1/3, -1/3),     // 010
-    new THREE.Vector3(-1/3, 1/3, 1/3),      // 011
-    new THREE.Vector3(1/3, -1/3, -1/3),     // 100
-    new THREE.Vector3(1/3, -1/3, 1/3),      // 101
-    new THREE.Vector3(1/3, 1/3, -1/3),      // 110
-    new THREE.Vector3(1/3, 1/3, 1/3),       // 111
+    new THREE.Vector3(-1/3, -1/3, -1/3),
+    new THREE.Vector3(-1/3, -1/3,  1/3),
+    new THREE.Vector3(-1/3,  1/3, -1/3),
+    new THREE.Vector3(-1/3,  1/3,  1/3),
+    new THREE.Vector3( 1/3, -1/3, -1/3),
+    new THREE.Vector3( 1/3, -1/3,  1/3),
+    new THREE.Vector3( 1/3,  1/3, -1/3),
+    new THREE.Vector3( 1/3,  1/3,  1/3),
 ]
 inters.forEach(
     p => p.applyMatrix4(forwardMat)
 )
-
 
 export function createZAxisCubon(x: number, y: number, z: number) {
     let geometry = new THREE.BufferGeometry()
@@ -301,7 +456,7 @@ export function createZAxisCubon(x: number, y: number, z: number) {
         if (x === 2 && y === 2 && z === 2) {
             flipVertices(Array.from(model.points))
         }
-        geometry = model.toGeometry()
+        model.toGeometry(geometry)
     }
     else if (
         (x === 1 && y === 1 && z === 2) ||
@@ -324,13 +479,15 @@ export function createZAxisCubon(x: number, y: number, z: number) {
         const p6 = { position: inters[0b101], color: new THREE.Color(1, 0, 0) }
         const p7 = { position: inters[0b001], color: new THREE.Color(1, 0, 0) }
 
+        model.addFace([p0, p1, p2])
+        model.addFace([p2, p3, p0])
+
         model.addFace([p1, p0, p4, p5])
         model.addFace([p2, p1, p5, p7])
         model.addFace([p3, p2, p7, p6])
         model.addFace([p0, p3, p6, p4])
 
-        model.addFace([p0, p1, p2])
-        model.addFace([p2, p3, p0])
+        model.addFace([p4, p6, p7, p5])
 
         model.round(radius)
 
@@ -338,7 +495,7 @@ export function createZAxisCubon(x: number, y: number, z: number) {
             flipVertices(Array.from(model.points))
         }
 
-        geometry = model.toGeometry()
+        model.toGeometry(geometry)
         if (y === 2 || x === 0) {
             geometry.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 1).normalize(), Math.PI * 4 / 3))
         }
@@ -379,7 +536,7 @@ export function createZAxisCubon(x: number, y: number, z: number) {
             flipVertices(Array.from(model.points))
         }
 
-        geometry = model.toGeometry()
+        model.toGeometry(geometry)
         if (x + y + z === 5) {
             if (y === 1) {
                 geometry.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 1).normalize(), Math.PI * 2 / 3))
@@ -425,7 +582,7 @@ export function createZAxisCubon(x: number, y: number, z: number) {
             flipVertices(Array.from(model.points))
         }
 
-        geometry = model.toGeometry()
+        model.toGeometry(geometry)
 
         if (x + y + z === 4) {
             if (y === 0) {
@@ -493,7 +650,7 @@ export function createZAxisCubon(x: number, y: number, z: number) {
 
         model.round(radius)
 
-        geometry = model.toGeometry()
+        model.toGeometry(geometry)
 
         if (y === 0) {
             geometry.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 1).normalize(), Math.PI * 2 / 3))
