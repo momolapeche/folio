@@ -6,7 +6,8 @@ import { patterns, type GameOfLifePatternTransform } from './patterns';
 export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget) {
     // Renderer
     const renderer = new WebGPURenderer({ antialias: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);
+    const width = container.clientWidth;
+    renderer.setSize(width * 0.5, width * 0.5);
     container.appendChild(renderer.domElement);
     // Initialize WebGPU renderer
     const initPromise = renderer.init()
@@ -17,9 +18,10 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
     scene.background = new THREE.Color(0x0a0a0a);
 
     // Camera
+    const rendererSize = renderer.getSize(new THREE.Vector2())
     const camera = new THREE.PerspectiveCamera(
         75,
-        container.clientWidth / container.clientHeight,
+        rendererSize.width / rendererSize.height,
         0.1,
         1000
     );

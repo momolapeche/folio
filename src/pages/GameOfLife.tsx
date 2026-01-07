@@ -52,17 +52,20 @@ export default function GameOfLife() {
 	};
 
 	return (
-		<div className="project-page">
+		<div className="project-page game-of-life-page">
 			<div className="project-header">
 				<h1>Game of Life</h1>
-				<p>Conway's Game of Life - A cellular automaton simulation</p>
 			</div>
 			<div ref={containerRef} className="canvas-container">
-				<PatternSelector onSelectPattern={handleSelectPattern} />
-				<PlayPauseButton onToggle={handleTogglePause} />
-				<TransformButton onTransform={handleTransform} />
-				<ClearButton onClear={handleClear} />
-				<PatternPreview pattern={currentPattern} transform={currentTransform} />
+				<div className="controls">
+					<div className="buttons">
+						<PlayPauseButton onToggle={handleTogglePause} />
+						<TransformButton onTransform={handleTransform} />
+						<ClearButton onClear={handleClear} />
+					</div>
+					<PatternPreview pattern={currentPattern} transform={currentTransform} />
+					<PatternSelector onSelectPattern={handleSelectPattern} />
+				</div>
 			</div>
 		</div>
 	);

@@ -1,8 +1,9 @@
 .transform-controls {
-  position: absolute;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
+  width: fit-content;
+  height: fit-content;
+  /* bottom: 2rem; */
+  /* left: 50%; */
+  /* transform: translateX(-50%); */
   display: flex;
   gap: 0.5rem;
   background: rgba(0, 0, 0, 0.8);

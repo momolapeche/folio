@@ -1,6 +1,7 @@
 import * as THREE from "three"
 import { WebGPURenderer } from "three/webgpu";
 import { createZAxisCubon } from "./zAxisModel";
+import { moves } from "./moves";
 
 function setFaceColor(colors: Float32Array, offset: number, r: number, g: number, b: number) {
     for (let i = 0; i < 4; i++) {
@@ -8,21 +9,6 @@ function setFaceColor(colors: Float32Array, offset: number, r: number, g: number
         colors[offset + i * 3 + 1] = g
         colors[offset + i * 3 + 2] = b
     }
-}
-
-interface Move {
-    axis: 'x' | 'y' | 'z'
-    layer: number
-    angle: number
-}
-
-const moves: Record<string, Move> = {
-    "R": { axis: 'x', layer: 1, angle: Math.PI / 2 },
-    "L": { axis: 'x', layer: -1, angle: Math.PI / 2 },
-    "U": { axis: 'y', layer: 1, angle: Math.PI / 2 },
-    "D": { axis: 'y', layer: -1, angle: Math.PI / 2 },
-    "F": { axis: 'z', layer: 1, angle: Math.PI / 2 },
-    "B": { axis: 'z', layer: -1, angle: Math.PI / 2 },
 }
 
 class Cubon extends THREE.Mesh {
@@ -34,16 +20,6 @@ class Cubon extends THREE.Mesh {
         this.originalPosition = position.clone()
     }
 }
-
-const qq = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-1, 1, 0).normalize(), Math.PI)
-const mm = new THREE.Matrix4().makeRotationFromQuaternion(qq)
-console.log(new THREE.Matrix3().setFromMatrix4(mm));
-/*
-0, -1, 0
--1, 0, 0
-0, 0, -1
- */
-
 
 function createCube() {
     const cube = new THREE.Group()
@@ -106,16 +82,20 @@ function createCube() {
 }
 
 export function main(containerRef: React.RefObject<HTMLDivElement | null>) {
-    if (!containerRef.current || containerRef.current.firstChild !== null) return;
+    if (!containerRef.current) {
+        console.warn("Container ref is null or already has children")
+        console.log(containerRef.current)
+        return
+    }
 
     // Scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a2e);
+    // scene.background = new THREE.Color(0x1a1a2e);
 
     // Camera
     const camera = new THREE.PerspectiveCamera(
-      75,
-      containerRef.current.clientWidth / containerRef.current.clientHeight,
+      60,
+      1,
       0.1,
       1000
     );
@@ -129,7 +109,8 @@ export function main(containerRef: React.RefObject<HTMLDivElement | null>) {
     renderer.init().then(() => {
         requestAnimationFrame(animate)
     })
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    const min = Math.min(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    renderer.setSize(min, min);
     containerRef.current.appendChild(renderer.domElement);
 
     // Lighting
@@ -143,14 +124,6 @@ export function main(containerRef: React.RefObject<HTMLDivElement | null>) {
 
     const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
-
-    const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshStandardMaterial({color: 0xffffff});
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -2;
-    ground.receiveShadow = true;
-    scene.add(ground);
 
     const cube = createCube()
     scene.add(cube)
@@ -205,19 +178,20 @@ export function main(containerRef: React.RefObject<HTMLDivElement | null>) {
         requestAnimationFrame(animate);
     };
 
-    const onKeyDown = (event: KeyboardEvent) => {
-        const move = moves[event.key.toUpperCase()]
+    function tryApplyMove(name: string) {
+        const move = moves[name]
+        console.log(moves)
         if (!move || currentMove !== null) return;
 
         const tmpVec3 = new THREE.Vector3()
         const layerCubons = cube.children.filter((child) => {
             const cubon = child as Cubon
             if (move.axis === 'x') {
-                return Math.round(tmpVec3.copy(cubon.originalPosition).applyQuaternion(cubon.quaternion).x) === move.layer
+                return move.layers.includes(Math.round(tmpVec3.copy(cubon.originalPosition).applyQuaternion(cubon.quaternion).x))
             } else if (move.axis === 'y') {
-                return Math.round(tmpVec3.copy(cubon.originalPosition).applyQuaternion(cubon.quaternion).y) === move.layer
-            } else { // 'z'
-                return Math.round(tmpVec3.copy(cubon.originalPosition).applyQuaternion(cubon.quaternion).z) === move.layer
+                return move.layers.includes(Math.round(tmpVec3.copy(cubon.originalPosition).applyQuaternion(cubon.quaternion).y))
+            } else {
+                return move.layers.includes(Math.round(tmpVec3.copy(cubon.originalPosition).applyQuaternion(cubon.quaternion).z))
             }
         })
 
@@ -234,25 +208,29 @@ export function main(containerRef: React.RefObject<HTMLDivElement | null>) {
             progress: 0,
         }
     }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+        tryApplyMove(event.key.toUpperCase())
+    }
     window.addEventListener('keydown', onKeyDown);
 
     // Handle resize
     const handleResize = () => {
         if (!containerRef.current) return;
-        camera.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
         camera.updateProjectionMatrix();
-        renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+        const min = Math.min(containerRef.current.clientWidth, containerRef.current.clientHeight);
+        renderer.setSize(min, min);
     };
     window.addEventListener('resize', handleResize);
 
-    console.log("setup complete")
-
-    // Cleanup
-    return () => {
-        console.log("cleanup")
-        window.removeEventListener('resize', handleResize);
-        window.removeEventListener('keydown', onKeyDown);
-        containerRef.current?.removeChild(renderer.domElement);
-        renderer.dispose();
-    };
+    return {
+        tryApplyMove,
+        cleanup: () => {
+            console.log("cleanup called")
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('keydown', onKeyDown);
+            renderer.domElement.parentElement?.removeChild(renderer.domElement);
+            renderer.dispose();
+        },
+    }
 }

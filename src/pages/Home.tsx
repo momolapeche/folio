@@ -4,9 +4,9 @@ import './Home.css';
 export default function Home() {
 	const projects = [
 		{
-			title: 'Animated Sphere',
-			description: 'A morphing sphere with dynamic geometry',
-			path: '/animated-sphere'
+			title: 'Rubik\'s Cube',
+			description: 'Interactive 3D Rubik\'s Cube puzzle',
+			path: '/rubiks-cube'
 		},
 		{
 			title: 'Game of Life',
