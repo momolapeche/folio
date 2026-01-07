@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type JSX } from 'react';
-import { patterns, type GameOfLifePattern, type GameOfLifePatternTransform } from '../gameOfLife/patterns';
+import { type JSX } from 'react';
+import { type GameOfLifePattern, type GameOfLifePatternTransform } from '../gameOfLife/patterns';
 import './PatternPreview.css';
 
 interface PatternPreviewProps {

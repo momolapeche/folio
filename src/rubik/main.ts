@@ -180,7 +180,6 @@ export function main(containerRef: React.RefObject<HTMLDivElement | null>) {
 
     function tryApplyMove(name: string) {
         const move = moves[name]
-        console.log(moves)
         if (!move || currentMove !== null) return;
 
         const tmpVec3 = new THREE.Vector3()

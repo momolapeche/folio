@@ -150,16 +150,16 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
             (x / rect.width) * 2 - 1,
             -(y / rect.height) * 2 + 1
         ), camera);
-        const intersects = raycaster.intersectObject(plane);
-        if (intersects.length > 0) {
-            const uv = intersects[0].uv;
-            if (uv) {
-                const gridX = Math.floor(uv.x * gridWidth) % gridWidth;
-                const gridY = Math.floor(uv.y * gridHeight) % gridHeight;
+        // const intersects = raycaster.intersectObject(plane);
+        // if (intersects.length > 0) {
+        //     const uv = intersects[0].uv;
+        //     if (uv) {
+        //         const gridX = Math.floor(uv.x * gridWidth) % gridWidth;
+        //         const gridY = Math.floor(uv.y * gridHeight) % gridHeight;
 
-                // gameOfLife.setCell(renderer, gridX, gridY, 1);
-            }
-        }
+        //         // gameOfLife.setCell(renderer, gridX, gridY, 1);
+        //     }
+        // }
     }
     renderer.domElement.addEventListener("mousemove", handleMouseMove)
 
@@ -188,7 +188,7 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
     }
     renderer.domElement.addEventListener("click", handleClick)
 
-    const handleClear = (event: any) => {
+    const handleClear = () => {
         gameOfLife.clear(renderer);
         textureNeedsUpdate = true;
     }

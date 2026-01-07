@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import Navigation from './components/Navigation';
 import './App.css';
 import AnimatedRoutes from './components/AnimatedRoutes.tsx';

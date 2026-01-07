@@ -1,6 +1,5 @@
-import * as THREE from 'three';
-import { ComputeNode, StorageBufferAttribute, StorageTexture, TSL, WebGPURenderer } from 'three/webgpu';
-import { wgslFn, storage, uint, instanceIndex, If, textureStore, ivec2, storageTexture, uvec2, float, vec4, Fn, select, vec3 } from 'three/tsl';
+import { ComputeNode, StorageBufferAttribute, StorageTexture, WebGPURenderer } from 'three/webgpu';
+import { wgslFn, storage, instanceIndex, textureStore, uvec2, vec4, Fn, select, vec3 } from 'three/tsl';
 import type { GameOfLifePattern, GameOfLifePatternTransform } from './patterns';
 
 // interface GameOfLifePattern {

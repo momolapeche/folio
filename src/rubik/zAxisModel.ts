@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { Model, type Vertex } from '../common/Model';
-import { normalLocal, normalView } from 'three/tsl'
 
 function flipVertices(vertices: Vertex[]) {
     vertices.forEach(vertex => {

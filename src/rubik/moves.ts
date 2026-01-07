@@ -14,11 +14,11 @@ function addVarients(obj: Record<string, Move>) {
 
 export const moves: Record<string, Move> = {
     "R": { axis: 'x', layers: [1], angle: -Math.PI / 2 },
-    "L": { axis: 'x', layers: [-1], angle: -Math.PI / 2 },
+    "L": { axis: 'x', layers: [-1], angle: Math.PI / 2 },
     "U": { axis: 'y', layers: [1], angle: -Math.PI / 2 },
-    "D": { axis: 'y', layers: [-1], angle: -Math.PI / 2 },
+    "D": { axis: 'y', layers: [-1], angle: Math.PI / 2 },
     "F": { axis: 'z', layers: [1], angle: -Math.PI / 2 },
-    "B": { axis: 'z', layers: [-1], angle: -Math.PI / 2 },
+    "B": { axis: 'z', layers: [-1], angle: Math.PI / 2 },
     "X": { axis: 'x', layers: [-1, 0, 1], angle: -Math.PI / 2 },
     "Y": { axis: 'y', layers: [-1, 0, 1], angle: -Math.PI / 2 },
     "Z": { axis: 'z', layers: [-1, 0, 1], angle: -Math.PI / 2 },
