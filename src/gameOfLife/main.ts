@@ -182,7 +182,7 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
                 const gridX = Math.floor(uv.x * gridWidth) % gridWidth;
                 const gridY = Math.floor(uv.y * gridHeight) % gridHeight;
                 
-                gameOfLife.setPattern(renderer, currentPattern, gridX, gridY, currentPatternTransform);
+                gameOfLife.setPattern(currentPattern, gridX, gridY, currentPatternTransform);
                 textureNeedsUpdate = true;
             }
         }

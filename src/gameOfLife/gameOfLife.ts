@@ -1,5 +1,4 @@
-import { ComputeNode, StorageBufferAttribute, StorageTexture, WebGPURenderer } from 'three/webgpu';
-import { wgslFn, storage, instanceIndex, textureStore, uvec2, vec4, Fn, select, vec3 } from 'three/tsl';
+import { StorageTexture, WebGPURenderer } from 'three/webgpu';
 import type { GameOfLifePattern, GameOfLifePatternTransform } from './patterns';
 
 const clearBufferWGSL = `
@@ -392,7 +391,7 @@ export class GameOfLife {
         }
     }
 
-    setPattern(renderer: WebGPURenderer, pattern: GameOfLifePattern, offsetX: number, offsetY: number, transform: GameOfLifePatternTransform): void {
+    setPattern(pattern: GameOfLifePattern, offsetX: number, offsetY: number, transform: GameOfLifePatternTransform): void {
         const paramsArrayBuffer = new ArrayBuffer(36);
         const paramsView = new DataView(paramsArrayBuffer);
 
