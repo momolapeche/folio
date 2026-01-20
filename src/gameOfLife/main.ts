@@ -10,7 +10,7 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
     renderer.setSize(width * 0.5, width * 0.5);
     container.appendChild(renderer.domElement);
     // Initialize WebGPU renderer
-    const initPromise = renderer.init()
+    const initPromise = renderer.init();
 
     
     // Scene setup
@@ -66,12 +66,12 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
         if (!isPaused && frameCount >= updateInterval) {
             frameCount = 0;
 
-            await gameOfLife.update(renderer);
+            gameOfLife.update();
             textureNeedsUpdate = true;
         }
 
         if (textureNeedsUpdate) {
-            await gameOfLife.getData(renderer, planeMaterial.map as StorageTexture);
+            gameOfLife.getData(renderer, planeMaterial.map as StorageTexture);
             textureNeedsUpdate = false;
         }
 
@@ -79,8 +79,9 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
         requestAnimationFrame(animate);
     };
 
-    initPromise.then(async () => {
-        await gameOfLife.getData(renderer, planeMaterial.map as StorageTexture);
+    initPromise.then(() => {
+        gameOfLife.initWGPU((renderer.backend as any).device);
+        gameOfLife.getData(renderer, planeMaterial.map as StorageTexture);
         animate();
     })
 
@@ -189,7 +190,7 @@ export function initGameOfLife(container: HTMLElement, eventTarget: EventTarget)
     renderer.domElement.addEventListener("click", handleClick)
 
     const handleClear = () => {
-        gameOfLife.clear(renderer);
+        gameOfLife.clear();
         textureNeedsUpdate = true;
     }
     eventTarget.addEventListener("clear", handleClear)
